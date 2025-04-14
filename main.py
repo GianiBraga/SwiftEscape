@@ -1,192 +1,96 @@
-# Import the pygame module
+# Importa o módulo pygame
 import pygame
 
-# Import random for random numbers
-import random
+# Importa constantes úteis para eventos e teclas
+from pygame.locals import K_ESCAPE, KEYDOWN, QUIT
 
-# Import pygame.locals for easier access to key coordinates
-# Updated to conform to flake8 and black standards
-from pygame.locals import (
-    RLEACCEL,
-    K_UP,
-    K_DOWN,
-    K_LEFT,
-    K_RIGHT,
-    K_ESCAPE,
-    KEYDOWN,
-    QUIT,
-)
+# Importa as classes do jogo organizadas em módulos
+from model.player import Player
+from model.enemy import Enemy
+from model.cloud import Cloud
 
-# Define constants for the screen width and height
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+# Importa as constantes de configuração da tela
+from settings import SCREEN_WIDTH, SCREEN_HEIGHT
 
-# Define a player object by extending pygame.sprite.Sprite
-# The surface drawn on the screen is now an attribute of 'player'
-class Player(pygame.sprite.Sprite):
-    def __init__(self):
-        super(Player, self).__init__()
-        self.surf = pygame.image.load("jet.png").convert_alpha()
-        self.surf = pygame.transform.scale(self.surf, (60, 30))
-        self.surf.set_colorkey((255, 255, 255), RLEACCEL)
-        self.rect = self.surf.get_rect()
-
-    # Move the sprite based on user keypresses
-    def update(self, pressed_keys):
-        if pressed_keys[K_UP]:
-            self.rect.move_ip(0, -5)
-        if pressed_keys[K_DOWN]:
-            self.rect.move_ip(0, 5)
-        if pressed_keys[K_LEFT]:
-            self.rect.move_ip(-5, 0)
-        if pressed_keys[K_RIGHT]:
-            self.rect.move_ip(5, 0)
-
-        # Keep player on the screen
-        if self.rect.left < 0:
-            self.rect.left = 0
-        if self.rect.right > SCREEN_WIDTH:
-            self.rect.right = SCREEN_WIDTH
-        if self.rect.top <= 0:
-            self.rect.top = 0
-        if self.rect.bottom >= SCREEN_HEIGHT:
-            self.rect.bottom = SCREEN_HEIGHT
-
-# Define the enemy object by extending pygame.sprite.Sprite
-# The surface you draw on the screen is now an attribute of 'enemy'
-class Enemy(pygame.sprite.Sprite):
-    def __init__(self):
-        super(Enemy, self).__init__()
-        self.surf = pygame.image.load("missel.png").convert()
-        self.surf = pygame.transform.scale(self.surf, (50, 20)) 
-        self.surf.set_colorkey((255, 255, 255), RLEACCEL)
-        self.rect = self.surf.get_rect(
-            center=(
-                random.randint(SCREEN_WIDTH + 20, SCREEN_WIDTH + 100),
-                random.randint(0, SCREEN_HEIGHT),
-            )
-        )
-        self.speed = random.randint(5, 20)
-
-    # Move the sprite based on speed
-    # Remove the sprite when it passes the left edge of the screen
-    def update(self):
-        self.rect.move_ip(-self.speed, 0)
-        if self.rect.right < 0:
-            self.kill()
-
-# Define the cloud object by extending pygame.sprite.Sprite
-# Use an image for a better-looking sprite
-class Cloud(pygame.sprite.Sprite):
-    def __init__(self):
-        super(Cloud, self).__init__()
-        self.surf = pygame.image.load("cloud.png").convert_alpha()
-        self.surf = pygame.transform.scale(self.surf, (70, 50)) 
-        self.surf.set_colorkey((0, 0, 0), RLEACCEL)
-        # The starting position is randomly generated
-        self.rect = self.surf.get_rect(
-            center=(
-                random.randint(SCREEN_WIDTH + 20, SCREEN_WIDTH + 100),
-                random.randint(0, SCREEN_HEIGHT),
-            )
-        )
-
-    # Move the cloud based on a constant speed
-    # Remove the cloud when it passes the left edge of the screen
-    def update(self):
-        self.rect.move_ip(-5, 0)
-        if self.rect.right < 0:
-            self.kill()
-            
-            
-# Initialize pygame
+# Inicializar o pygame (obrigatório antes de usar qualquer função do pygame)
 pygame.init()
 
-# Create the screen object
-# The size is determined by the constant SCREEN_WIDTH and SCREEN_HEIGHT
+# Criar o objeto da tela com dimensões especificadas
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
-# Create a custom event for adding a new enemy
+# Criar evento personalizado para adicionar inimigos a cada 250ms
 ADDENEMY = pygame.USEREVENT + 1
 pygame.time.set_timer(ADDENEMY, 250)
 
-# Create custom events for adding a new enemy and a cloud
+# Criar evento personalizado para adicionar nuvens a cada 1000ms (1 segundo)
 ADDCLOUD = pygame.USEREVENT + 2
 pygame.time.set_timer(ADDCLOUD, 1000)
 
-# Instantiate player. Right now, this is just a rectangle.
+# Instanciar o jogador
 player = Player()
 
-# Create groups to hold enemy sprites and all sprites
-# - enemies is used for collision detection and position updates
-# - clouds is used for position updates
-# - all_sprites is used for rendering
+# Criar grupos para sprites:
+# - enemies: apenas os inimigos, para detectar colisões
+# - clouds: apenas as nuvens, que são decorativas
+# - all_sprites: todos os elementos desenhados na tela
 enemies = pygame.sprite.Group()
 clouds = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
 all_sprites.add(player)
 
-# Variable to keep the main loop running
+# Variável para manter o loop principal rodando
 running = True
 
-# Setup the clock for a decent framerate
+# Criar um relógio para controlar a taxa de atualização (frames por segundo)
 clock = pygame.time.Clock()
 
-# Main loop
+# Início do loop principal do jogo
 while running:
-    # for loop through the event queue
+    # Verifica todos os eventos que ocorreram (teclas, fechamento da janela, etc.)
     for event in pygame.event.get():
-        # Check for KEYDOWN event
         if event.type == KEYDOWN:
-            # If the Esc key is pressed, then exit the main loop
+            # Se a tecla ESC for pressionada, o jogo é encerrado
             if event.key == K_ESCAPE:
                 running = False
-        # Check for QUIT event. If QUIT, then set running to false.
         elif event.type == QUIT:
+            # Se a janela for fechada, o jogo também é encerrado
             running = False
-
-        # Add a new enemy?
         elif event.type == ADDENEMY:
-            # Create the new enemy and add it to sprite groups
+            # Adiciona um novo inimigo aos grupos de sprites
             new_enemy = Enemy()
             enemies.add(new_enemy)
             all_sprites.add(new_enemy)
-        
-         # Add a new cloud?
         elif event.type == ADDCLOUD:
-            # Create the new cloud and add it to sprite groups
+            # Adiciona uma nova nuvem aos grupos de sprites
             new_cloud = Cloud()
             clouds.add(new_cloud)
             all_sprites.add(new_cloud)
-            
-    # Get all the keys currently pressed
+    
+    # Obtém as teclas que estão sendo pressionadas no momento
     pressed_keys = pygame.key.get_pressed()
 
-    # Update the player sprite based on user keypresses
+    # Atualiza a posição do jogador com base nas teclas pressionadas
     player.update(pressed_keys)
-    
-    # Update enemy position and clouds
+
+    # Atualiza as posições dos inimigos e nuvens
     enemies.update()
     clouds.update()
 
-    # Fill the screen with sky blue
+    # Preenche o fundo da tela com um azul claro (céu)
     screen.fill((135, 206, 250))
-    
-    # Draw all sprites
+
+    # Desenha todos os sprites na tela
     for entity in all_sprites:
         screen.blit(entity.surf, entity.rect)
-        
-    # Check if any enemies have collided with the player
+
+    # Verifica colisão entre o jogador e qualquer inimigo
     if pygame.sprite.spritecollideany(player, enemies):
-        # If so, then remove the player and stop the loop
+        # Se houver colisão, remove o jogador e encerra o jogo
         player.kill()
         running = False
 
-    # Flip everything to the display
+    # Atualiza a tela com tudo que foi desenhado
     pygame.display.flip()
 
-    # Ensure program maintains a rate of 30 frames per second
+    # Controla a taxa de frames (30 FPS)
     clock.tick(30)
-    
-    # Update the display
-    pygame.display.flip()
