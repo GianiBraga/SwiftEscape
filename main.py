@@ -1,96 +1,154 @@
-# Importa o módulo pygame
 import pygame
-
-# Importa constantes úteis para eventos e teclas
-from pygame.locals import K_ESCAPE, KEYDOWN, QUIT
-
-# Importa as classes do jogo organizadas em módulos
+import random
+from pygame.locals import K_ESCAPE, K_RETURN, KEYDOWN, QUIT
 from model.player import Player
 from model.enemy import Enemy
 from model.cloud import Cloud
-
-# Importa as constantes de configuração da tela
 from settings import SCREEN_WIDTH, SCREEN_HEIGHT
+from game_states import MENU, JOGANDO, GAME_OVER
 
-# Inicializar o pygame (obrigatório antes de usar qualquer função do pygame)
+# Inicializa o Pygame e a fonte
 pygame.init()
+pygame.font.init()
 
-# Criar o objeto da tela com dimensões especificadas
+# Configura a janela principal
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Swift Escape")
 
-# Criar evento personalizado para adicionar inimigos a cada 250ms
-ADDENEMY = pygame.USEREVENT + 1
+# Fonte usada nos menus
+font = pygame.font.SysFont("Arial", 36)
+
+# Criação de eventos personalizados
+ADDENEMY = pygame.USEREVENT + 1     # Evento para adicionar inimigos
 pygame.time.set_timer(ADDENEMY, 250)
 
-# Criar evento personalizado para adicionar nuvens a cada 1000ms (1 segundo)
-ADDCLOUD = pygame.USEREVENT + 2
+ADDCLOUD = pygame.USEREVENT + 2     # Evento para adicionar nuvens
 pygame.time.set_timer(ADDCLOUD, 1000)
 
-# Instanciar o jogador
-player = Player()
+# Função utilitária para desenhar texto centralizado na tela
+def draw_text(text, font, color, surface, x, y):
+    textobj = font.render(text, True, color)
+    textrect = textobj.get_rect(center=(x, y))
+    surface.blit(textobj, textrect)
 
-# Criar grupos para sprites:
-# - enemies: apenas os inimigos, para detectar colisões
-# - clouds: apenas as nuvens, que são decorativas
-# - all_sprites: todos os elementos desenhados na tela
-enemies = pygame.sprite.Group()
-clouds = pygame.sprite.Group()
-all_sprites = pygame.sprite.Group()
-all_sprites.add(player)
+# Tela de menu principal
+def menu_principal():
+    while True:
+        # Fundo preto e instruções
+        screen.fill((0, 0, 0))
+        draw_text("Swift Escape", font, (255, 255, 255), screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3)
+        draw_text("Pressione ENTER para começar", font, (255, 255, 255), screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
 
-# Variável para manter o loop principal rodando
-running = True
+        # Atualiza a tela
+        pygame.display.flip()
 
-# Criar um relógio para controlar a taxa de atualização (frames por segundo)
-clock = pygame.time.Clock()
+        # Trata eventos do menu
+        for event in pygame.event.get():
+            if event.type == KEYDOWN:
+                if event.key == K_RETURN:
+                    return JOGANDO      # Começar o jogo
+                elif event.key == K_ESCAPE:
+                    pygame.quit()
+                    exit()
+            elif event.type == QUIT:
+                pygame.quit()
+                exit()
 
-# Início do loop principal do jogo
-while running:
-    # Verifica todos os eventos que ocorreram (teclas, fechamento da janela, etc.)
-    for event in pygame.event.get():
-        if event.type == KEYDOWN:
-            # Se a tecla ESC for pressionada, o jogo é encerrado
-            if event.key == K_ESCAPE:
-                running = False
-        elif event.type == QUIT:
-            # Se a janela for fechada, o jogo também é encerrado
-            running = False
-        elif event.type == ADDENEMY:
-            # Adiciona um novo inimigo aos grupos de sprites
-            new_enemy = Enemy()
-            enemies.add(new_enemy)
-            all_sprites.add(new_enemy)
-        elif event.type == ADDCLOUD:
-            # Adiciona uma nova nuvem aos grupos de sprites
-            new_cloud = Cloud()
-            clouds.add(new_cloud)
-            all_sprites.add(new_cloud)
-    
-    # Obtém as teclas que estão sendo pressionadas no momento
-    pressed_keys = pygame.key.get_pressed()
+# Tela de game over
+def game_over(score_time):
+    while True:
+        # Fundo preto e mensagem de fim de jogo
+        screen.fill((0, 0, 0))
+        draw_text(f"Game Over", font, (255, 0, 0), screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3)
+        draw_text(f"Pontos por tempo: {score_time}", font, (255, 255, 255), screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+        draw_text("Pressione ENTER para jogar novamente", font, (255, 255, 255), screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 50)
 
-    # Atualiza a posição do jogador com base nas teclas pressionadas
-    player.update(pressed_keys)
+        # Atualiza a tela
+        pygame.display.flip()
 
-    # Atualiza as posições dos inimigos e nuvens
-    enemies.update()
-    clouds.update()
+        # Trata eventos da tela de game over
+        for event in pygame.event.get():
+            if event.type == KEYDOWN:
+                if event.key == K_RETURN:
+                    return JOGANDO      # Reiniciar o jogo
+                elif event.key == K_ESCAPE:
+                    pygame.quit()
+                    exit()
+            elif event.type == QUIT:
+                pygame.quit()
+                exit()
 
-    # Preenche o fundo da tela com um azul claro (céu)
-    screen.fill((135, 206, 250))
+# Loop principal do jogo (durante a partida)
+def loop_jogo():
+    # Cria o jogador e os grupos de sprites
+    player = Player()
+    enemies = pygame.sprite.Group()
+    clouds = pygame.sprite.Group()
+    all_sprites = pygame.sprite.Group()
+    all_sprites.add(player)
 
-    # Desenha todos os sprites na tela
-    for entity in all_sprites:
-        screen.blit(entity.surf, entity.rect)
+    clock = pygame.time.Clock()
+    running = True
 
-    # Verifica colisão entre o jogador e qualquer inimigo
-    if pygame.sprite.spritecollideany(player, enemies):
-        # Se houver colisão, remove o jogador e encerra o jogo
-        player.kill()
-        running = False
+    # Inicializa a variável de pontuação de tempo
+    score_time = 0
+    start_ticks = pygame.time.get_ticks()  # Captura o tempo de início para o cálculo de tempo
 
-    # Atualiza a tela com tudo que foi desenhado
-    pygame.display.flip()
+    while running:
+        # Verifica os eventos
+        for event in pygame.event.get():
+            if event.type == KEYDOWN and event.key == K_ESCAPE:
+                return MENU             # Volta ao menu
+            elif event.type == QUIT:
+                pygame.quit()
+                exit()
+            elif event.type == ADDENEMY:
+                new_enemy = Enemy()
+                enemies.add(new_enemy)
+                all_sprites.add(new_enemy)
+            elif event.type == ADDCLOUD:
+                new_cloud = Cloud()
+                clouds.add(new_cloud)
+                all_sprites.add(new_cloud)
 
-    # Controla a taxa de frames (30 FPS)
-    clock.tick(30)
+        # Captura teclas pressionadas
+        pressed_keys = pygame.key.get_pressed()
+
+        # Atualiza jogador, inimigos e nuvens
+        player.update(pressed_keys)
+        enemies.update()
+        clouds.update()
+
+        # Preenche fundo com azul (céu)
+        screen.fill((135, 206, 250))
+
+        # Desenha todos os elementos na tela
+        for entity in all_sprites:
+            screen.blit(entity.surf, entity.rect)
+
+        # Verifica colisão entre jogador e inimigos
+        if pygame.sprite.spritecollideany(player, enemies):
+            player.kill()
+            return game_over(score_time)           # Vai para a tela de fim de jogo
+
+        # Atualiza o tempo de sobrevivência (pontuação)
+        score_time = (pygame.time.get_ticks() - start_ticks) // 1000  # Tempo em segundos
+
+        # Exibe a pontuação de tempo na tela
+        draw_text(f"Tempo: {score_time}", font, (255, 255, 255), screen, SCREEN_WIDTH - 150, 30)
+
+        # Atualiza a tela
+        pygame.display.flip()
+
+        # Controla a taxa de frames
+        clock.tick(30)
+
+# Controlador de estado do jogo
+estado = MENU
+while True:
+    if estado == MENU:
+        estado = menu_principal()
+    elif estado == JOGANDO:
+        estado = loop_jogo()
+    elif estado == GAME_OVER:
+        estado = game_over(score_time)
