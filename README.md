@@ -32,12 +32,11 @@ Swift Escape é um jogo 2D desenvolvido em Python com Pygame. O jogador controla
 
 ```
 git clone https://github.com/GianiBraga/SwiftEscape.git
-
 ```
+
 2. Acesse a pasta:
 ```
 cd SwiftEscape
-
 ```
 
 3. Instale o Pygame (se ainda não tiver):
