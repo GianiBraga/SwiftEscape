@@ -13,7 +13,7 @@ Swift Escape é um jogo 2D desenvolvido em Python com Pygame. O jogador controla
 ## 🖼️ Imagens 
 
 ### Menu Inicial
-![Menu do jogo](images/menu.png)
+![Menu do jogo](images/menu_inicial.png)
 
 ### Gameplay
 ![Jogo em ação](images/gameplay.png)
